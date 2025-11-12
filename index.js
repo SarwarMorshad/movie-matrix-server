@@ -209,25 +209,25 @@ async function run() {
     // ==================== USER ROUTES ====================
 
     // Save User to Database
-    // app.post("/users", async (req, res) => {
-    //   try {
-    //     const user = req.body;
-    //     const query = { email: user.email };
+    app.post("/users", async (req, res) => {
+      try {
+        const user = req.body;
+        const query = { email: user.email };
 
-    //     // Check if user already exists
-    //     const existingUser = await usersCollection.findOne(query);
+        // Check if user already exists
+        const existingUser = await usersCollection.findOne(query);
 
-    //     if (existingUser) {
-    //       return res.send({ message: "User already exists", insertedId: null });
-    //     }
+        if (existingUser) {
+          return res.send({ message: "User already exists", insertedId: null });
+        }
 
-    //     const result = await usersCollection.insertOne(user);
-    //     res.status(201).send(result);
-    //   } catch (error) {
-    //     console.error("Error saving user:", error);
-    //     res.status(500).send({ message: "Error saving user", error: error.message });
-    //   }
-    // });
+        const result = await usersCollection.insertOne(user);
+        res.status(201).send(result);
+      } catch (error) {
+        console.error("Error saving user:", error);
+        res.status(500).send({ message: "Error saving user", error: error.message });
+      }
+    });
 
     // ==================== SEARCH & FILTER ROUTES (OPTIONAL) ====================
 
