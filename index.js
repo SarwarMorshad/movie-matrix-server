@@ -129,58 +129,58 @@ async function run() {
     });
 
     // Update Movie
-    // app.put("/movies/:id", async (req, res) => {
-    //   try {
-    //     const id = req.params.id;
-    //     const filter = { _id: new ObjectId(id) };
-    //     const updatedMovie = req.body;
+    app.put("/movies/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updatedMovie = req.body;
 
-    //     const updateDoc = {
-    //       $set: {
-    //         title: updatedMovie.title,
-    //         genre: updatedMovie.genre,
-    //         releaseYear: updatedMovie.releaseYear,
-    //         director: updatedMovie.director,
-    //         cast: updatedMovie.cast,
-    //         rating: updatedMovie.rating,
-    //         duration: updatedMovie.duration,
-    //         plotSummary: updatedMovie.plotSummary,
-    //         posterUrl: updatedMovie.posterUrl,
-    //         language: updatedMovie.language,
-    //         country: updatedMovie.country,
-    //       },
-    //     };
+        const updateDoc = {
+          $set: {
+            title: updatedMovie.title,
+            genre: updatedMovie.genre,
+            releaseYear: updatedMovie.releaseYear,
+            director: updatedMovie.director,
+            cast: updatedMovie.cast,
+            rating: updatedMovie.rating,
+            duration: updatedMovie.duration,
+            plotSummary: updatedMovie.plotSummary,
+            posterUrl: updatedMovie.posterUrl,
+            language: updatedMovie.language,
+            country: updatedMovie.country,
+          },
+        };
 
-    //     const result = await moviesCollection.updateOne(filter, updateDoc);
+        const result = await moviesCollection.updateOne(filter, updateDoc);
 
-    //     if (result.matchedCount === 0) {
-    //       return res.status(404).send({ message: "Movie not found" });
-    //     }
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Movie not found" });
+        }
 
-    //     res.send(result);
-    //   } catch (error) {
-    //     console.error("Error updating movie:", error);
-    //     res.status(500).send({ message: "Error updating movie", error: error.message });
-    //   }
-    // });
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating movie:", error);
+        res.status(500).send({ message: "Error updating movie", error: error.message });
+      }
+    });
 
     // Delete Movie
-    // app.delete("/movies/:id", async (req, res) => {
-    //   try {
-    //     const id = req.params.id;
-    //     const query = { _id: new ObjectId(id) };
-    //     const result = await moviesCollection.deleteOne(query);
+    app.delete("/movies/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await moviesCollection.deleteOne(query);
 
-    //     if (result.deletedCount === 0) {
-    //       return res.status(404).send({ message: "Movie not found" });
-    //     }
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Movie not found" });
+        }
 
-    //     res.send(result);
-    //   } catch (error) {
-    //     console.error("Error deleting movie:", error);
-    //     res.status(500).send({ message: "Error deleting movie", error: error.message });
-    //   }
-    // });
+        res.send(result);
+      } catch (error) {
+        console.error("Error deleting movie:", error);
+        res.status(500).send({ message: "Error deleting movie", error: error.message });
+      }
+    });
 
     // ==================== STATISTICS ROUTES ====================
 
@@ -248,16 +248,16 @@ async function run() {
     });
 
     // Filter Movies by Genre
-    // app.get("/movies/genre/:genre", async (req, res) => {
-    //   try {
-    //     const genre = req.params.genre;
-    //     const movies = await moviesCollection.find({ genre: { $regex: genre, $options: "i" } }).toArray();
-    //     res.send(movies);
-    //   } catch (error) {
-    //     console.error("Error filtering movies by genre:", error);
-    //     res.status(500).send({ message: "Error filtering movies", error: error.message });
-    //   }
-    // });
+    app.get("/movies/genre/:genre", async (req, res) => {
+      try {
+        const genre = req.params.genre;
+        const movies = await moviesCollection.find({ genre: { $regex: genre, $options: "i" } }).toArray();
+        res.send(movies);
+      } catch (error) {
+        console.error("Error filtering movies by genre:", error);
+        res.status(500).send({ message: "Error filtering movies", error: error.message });
+      }
+    });
 
     console.log("✅ All routes are ready!");
   } catch (error) {
