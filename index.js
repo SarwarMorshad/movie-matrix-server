@@ -89,15 +89,15 @@ async function run() {
     });
 
     // Get Top Rated Movies (Top 5)
-    // app.get("/movies-top-rated", async (req, res) => {
-    //   try {
-    //     const movies = await moviesCollection.find().sort({ rating: -1 }).limit(5).toArray();
-    //     res.send(movies);
-    //   } catch (error) {
-    //     console.error("Error fetching top rated movies:", error);
-    //     res.status(500).send({ message: "Error fetching top rated movies", error: error.message });
-    //   }
-    // });
+    app.get("/movies-top-rated", async (req, res) => {
+      try {
+        const movies = await moviesCollection.find().sort({ rating: -1 }).limit(5).toArray();
+        res.send(movies);
+      } catch (error) {
+        console.error("Error fetching top rated movies:", error);
+        res.status(500).send({ message: "Error fetching top rated movies", error: error.message });
+      }
+    });
 
     // Get Recently Added Movies (Latest 6)
     // app.get("/movies-recent", async (req, res) => {
