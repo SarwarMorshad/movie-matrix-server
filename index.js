@@ -100,15 +100,15 @@ async function run() {
     });
 
     // Get Recently Added Movies (Latest 6)
-    // app.get("/movies-recent", async (req, res) => {
-    //   try {
-    //     const movies = await moviesCollection.find().sort({ _id: -1 }).limit(6).toArray();
-    //     res.send(movies);
-    //   } catch (error) {
-    //     console.error("Error fetching recent movies:", error);
-    //     res.status(500).send({ message: "Error fetching recent movies", error: error.message });
-    //   }
-    // });
+    app.get("/movies-recent", async (req, res) => {
+      try {
+        const movies = await moviesCollection.find().sort({ _id: -1 }).limit(6).toArray();
+        res.send(movies);
+      } catch (error) {
+        console.error("Error fetching recent movies:", error);
+        res.status(500).send({ message: "Error fetching recent movies", error: error.message });
+      }
+    });
 
     // Add New Movie
     // app.post("/movies", async (req, res) => {
