@@ -111,22 +111,22 @@ async function run() {
     });
 
     // Add New Movie
-    // app.post("/movies", async (req, res) => {
-    //   try {
-    //     const movie = req.body;
+    app.post("/movies", async (req, res) => {
+      try {
+        const movie = req.body;
 
-    //     // Basic validation
-    //     if (!movie.title || !movie.genre || !movie.rating) {
-    //       return res.status(400).send({ message: "Missing required fields" });
-    //     }
+        // Basic validation
+        if (!movie.title || !movie.genre || !movie.rating) {
+          return res.status(400).send({ message: "Missing required fields" });
+        }
 
-    //     const result = await moviesCollection.insertOne(movie);
-    //     res.status(201).send(result);
-    //   } catch (error) {
-    //     console.error("Error adding movie:", error);
-    //     res.status(500).send({ message: "Error adding movie", error: error.message });
-    //   }
-    // });
+        const result = await moviesCollection.insertOne(movie);
+        res.status(201).send(result);
+      } catch (error) {
+        console.error("Error adding movie:", error);
+        res.status(500).send({ message: "Error adding movie", error: error.message });
+      }
+    });
 
     // Update Movie
     // app.put("/movies/:id", async (req, res) => {
@@ -185,26 +185,26 @@ async function run() {
     // ==================== STATISTICS ROUTES ====================
 
     // Get Total Movies Count
-    // app.get("/stats/movies-count", async (req, res) => {
-    //   try {
-    //     const count = await moviesCollection.countDocuments();
-    //     res.send({ totalMovies: count });
-    //   } catch (error) {
-    //     console.error("Error fetching movie count:", error);
-    //     res.status(500).send({ message: "Error fetching movie count", error: error.message });
-    //   }
-    // });
+    app.get("/stats/movies-count", async (req, res) => {
+      try {
+        const count = await moviesCollection.countDocuments();
+        res.send({ totalMovies: count });
+      } catch (error) {
+        console.error("Error fetching movie count:", error);
+        res.status(500).send({ message: "Error fetching movie count", error: error.message });
+      }
+    });
 
     // Get Total Users Count
-    // app.get("/stats/users-count", async (req, res) => {
-    //   try {
-    //     const count = await usersCollection.countDocuments();
-    //     res.send({ totalUsers: count });
-    //   } catch (error) {
-    //     console.error("Error fetching user count:", error);
-    //     res.status(500).send({ message: "Error fetching user count", error: error.message });
-    //   }
-    // });
+    app.get("/stats/users-count", async (req, res) => {
+      try {
+        const count = await usersCollection.countDocuments();
+        res.send({ totalUsers: count });
+      } catch (error) {
+        console.error("Error fetching user count:", error);
+        res.status(500).send({ message: "Error fetching user count", error: error.message });
+      }
+    });
 
     // ==================== USER ROUTES ====================
 
