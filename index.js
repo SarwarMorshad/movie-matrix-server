@@ -32,6 +32,7 @@ async function run() {
     const moviesCollection = database.collection("movies");
     const usersCollection = database.collection("users");
     const watchlistCollection = database.collection("watchlist");
+    const reviewsCollection = database.collection("reviews");
 
     // ==================== ROUTES ====================
 
@@ -53,7 +54,7 @@ async function run() {
       }
     });
 
-    // Get Single Movie by ID
+    // Get Single Movie by ID (with reviews and average rating)
     app.get("/movies/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -64,7 +65,25 @@ async function run() {
           return res.status(404).send({ message: "Movie not found" });
         }
 
-        res.send(movie);
+        // Get all reviews for this movie
+        const reviews = await reviewsCollection
+          .find({ movieId: id, moderated: true }) // Only show approved reviews
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        // Calculate average rating from reviews
+        let averageRating = movie.rating; // Default to original rating
+        if (reviews.length > 0) {
+          const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+          averageRating = (totalRating / reviews.length).toFixed(1);
+        }
+
+        res.send({
+          ...movie,
+          reviews,
+          averageRating: parseFloat(averageRating),
+          reviewCount: reviews.length,
+        });
       } catch (error) {
         console.error("Error fetching movie:", error);
         res.status(500).send({ message: "Error fetching movie", error: error.message });
@@ -170,6 +189,10 @@ async function run() {
       try {
         const id = req.params.id;
         const query = { _id: new ObjectId(id) };
+
+        // Also delete all reviews for this movie
+        await reviewsCollection.deleteMany({ movieId: id });
+
         const result = await moviesCollection.deleteOne(query);
 
         if (result.deletedCount === 0) {
@@ -180,6 +203,229 @@ async function run() {
       } catch (error) {
         console.error("Error deleting movie:", error);
         res.status(500).send({ message: "Error deleting movie", error: error.message });
+      }
+    });
+
+    // ==================== REVIEWS ROUTES ====================
+
+    // Get Reviews for a Movie
+    app.get("/reviews/:movieId", async (req, res) => {
+      try {
+        const movieId = req.params.movieId;
+
+        // Only return approved/moderated reviews
+        const reviews = await reviewsCollection
+          .find({ movieId, moderated: true })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.send(reviews);
+      } catch (error) {
+        console.error("Error fetching reviews:", error);
+        res.status(500).send({ message: "Error fetching reviews", error: error.message });
+      }
+    });
+
+    // Get User's Reviews
+    app.get("/my-reviews", async (req, res) => {
+      try {
+        const email = req.query.email;
+
+        if (!email) {
+          return res.status(400).send({ message: "Email is required" });
+        }
+
+        const reviews = await reviewsCollection.find({ userEmail: email }).sort({ createdAt: -1 }).toArray();
+
+        res.send(reviews);
+      } catch (error) {
+        console.error("Error fetching user reviews:", error);
+        res.status(500).send({ message: "Error fetching user reviews", error: error.message });
+      }
+    });
+
+    // Add Review
+    app.post("/reviews", async (req, res) => {
+      try {
+        const { movieId, rating, comment, userEmail, userName, userPhoto } = req.body;
+
+        // Validation
+        if (!movieId || !rating || !userEmail) {
+          return res.status(400).send({
+            message: "Movie ID, rating, and user email are required",
+          });
+        }
+
+        if (rating < 1 || rating > 10) {
+          return res.status(400).send({
+            message: "Rating must be between 1 and 10",
+          });
+        }
+
+        // Check if user already reviewed this movie
+        const existingReview = await reviewsCollection.findOne({
+          movieId,
+          userEmail,
+        });
+
+        if (existingReview) {
+          return res.status(409).send({
+            message: "You have already reviewed this movie",
+          });
+        }
+
+        // Create review
+        const review = {
+          movieId,
+          rating: parseFloat(rating),
+          comment: comment || "",
+          userEmail,
+          userName: userName || "Anonymous",
+          userPhoto: userPhoto || null,
+          createdAt: new Date(),
+          moderated: true, // Auto-approve for now (can add manual moderation later)
+        };
+
+        const result = await reviewsCollection.insertOne(review);
+
+        // Update movie's average rating
+        const allReviews = await reviewsCollection.find({ movieId, moderated: true }).toArray();
+
+        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+
+        await moviesCollection.updateOne(
+          { _id: new ObjectId(movieId) },
+          {
+            $set: {
+              rating: parseFloat(avgRating.toFixed(1)),
+              reviewCount: allReviews.length,
+            },
+          }
+        );
+
+        res.status(201).send({
+          message: "Review added successfully",
+          review: { ...review, _id: result.insertedId },
+        });
+      } catch (error) {
+        console.error("Error adding review:", error);
+        res.status(500).send({ message: "Error adding review", error: error.message });
+      }
+    });
+
+    // Update Review
+    app.put("/reviews/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { rating, comment, userEmail } = req.body;
+
+        // Get existing review
+        const review = await reviewsCollection.findOne({ _id: new ObjectId(id) });
+
+        if (!review) {
+          return res.status(404).send({ message: "Review not found" });
+        }
+
+        // Check if user is the owner of the review
+        if (review.userEmail !== userEmail) {
+          return res.status(403).send({
+            message: "You can only update your own reviews",
+          });
+        }
+
+        // Validation
+        if (rating && (rating < 1 || rating > 10)) {
+          return res.status(400).send({
+            message: "Rating must be between 1 and 10",
+          });
+        }
+
+        // Update review
+        const updateDoc = {
+          $set: {
+            rating: rating ? parseFloat(rating) : review.rating,
+            comment: comment !== undefined ? comment : review.comment,
+            updatedAt: new Date(),
+          },
+        };
+
+        const result = await reviewsCollection.updateOne({ _id: new ObjectId(id) }, updateDoc);
+
+        // Recalculate movie's average rating
+        const allReviews = await reviewsCollection
+          .find({ movieId: review.movieId, moderated: true })
+          .toArray();
+
+        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+
+        await moviesCollection.updateOne(
+          { _id: new ObjectId(review.movieId) },
+          {
+            $set: {
+              rating: parseFloat(avgRating.toFixed(1)),
+              reviewCount: allReviews.length,
+            },
+          }
+        );
+
+        res.send({ message: "Review updated successfully", result });
+      } catch (error) {
+        console.error("Error updating review:", error);
+        res.status(500).send({ message: "Error updating review", error: error.message });
+      }
+    });
+
+    // Delete Review
+    app.delete("/reviews/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const userEmail = req.query.email;
+
+        if (!userEmail) {
+          return res.status(400).send({ message: "User email is required" });
+        }
+
+        // Get existing review
+        const review = await reviewsCollection.findOne({ _id: new ObjectId(id) });
+
+        if (!review) {
+          return res.status(404).send({ message: "Review not found" });
+        }
+
+        // Check if user is the owner of the review
+        if (review.userEmail !== userEmail) {
+          return res.status(403).send({
+            message: "You can only delete your own reviews",
+          });
+        }
+
+        // Delete review
+        const result = await reviewsCollection.deleteOne({ _id: new ObjectId(id) });
+
+        // Recalculate movie's average rating
+        const allReviews = await reviewsCollection
+          .find({ movieId: review.movieId, moderated: true })
+          .toArray();
+
+        let avgRating = 0;
+        if (allReviews.length > 0) {
+          avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+        }
+
+        await moviesCollection.updateOne(
+          { _id: new ObjectId(review.movieId) },
+          {
+            $set: {
+              rating: parseFloat(avgRating.toFixed(1)),
+              reviewCount: allReviews.length,
+            },
+          }
+        );
+
+        res.send({ message: "Review deleted successfully", result });
+      } catch (error) {
+        console.error("Error deleting review:", error);
+        res.status(500).send({ message: "Error deleting review", error: error.message });
       }
     });
 
@@ -204,6 +450,17 @@ async function run() {
       } catch (error) {
         console.error("Error fetching user count:", error);
         res.status(500).send({ message: "Error fetching user count", error: error.message });
+      }
+    });
+
+    // Get Total Reviews Count
+    app.get("/stats/reviews-count", async (req, res) => {
+      try {
+        const count = await reviewsCollection.countDocuments({ moderated: true });
+        res.send({ totalReviews: count });
+      } catch (error) {
+        console.error("Error fetching review count:", error);
+        res.status(500).send({ message: "Error fetching review count", error: error.message });
       }
     });
 
@@ -241,7 +498,7 @@ async function run() {
         const watchlistItems = await watchlistCollection.find({ email }).toArray();
 
         if (watchlistItems.length === 0) {
-          return res.send([]); // Return empty array if no watchlist items
+          return res.send([]);
         }
 
         // Convert movie IDs to ObjectId
@@ -284,7 +541,7 @@ async function run() {
         // Check if already in watchlist
         const existing = await watchlistCollection.findOne({
           email,
-          movieId: movieId.toString(), // Store as string
+          movieId: movieId.toString(),
         });
 
         if (existing) {
@@ -296,7 +553,7 @@ async function run() {
         // Add to watchlist
         const result = await watchlistCollection.insertOne({
           email,
-          movieId: movieId.toString(), // Store as string
+          movieId: movieId.toString(),
           addedAt: new Date(),
         });
 
@@ -322,7 +579,7 @@ async function run() {
         // Delete from watchlist
         const result = await watchlistCollection.deleteOne({
           email,
-          movieId: movieId.toString(), // Search as string
+          movieId: movieId.toString(),
         });
 
         if (result.deletedCount === 0) {
@@ -357,112 +614,6 @@ async function run() {
           message: "Error fetching watchlist count",
           error: error.message,
         });
-      }
-    });
-
-    // ==================== SEARCH & FILTER ROUTES ====================
-
-    // Search Movies by Title
-    app.get("/movies/search/:query", async (req, res) => {
-      try {
-        const searchQuery = req.params.query;
-        const movies = await moviesCollection
-          .find({
-            title: { $regex: searchQuery, $options: "i" },
-          })
-          .toArray();
-        res.send(movies);
-      } catch (error) {
-        console.error("Error searching movies:", error);
-        res.status(500).send({ message: "Error searching movies", error: error.message });
-      }
-    });
-
-    // Filter Movies by Genre
-    app.get("/movies/genre/:genre", async (req, res) => {
-      try {
-        const genre = req.params.genre;
-        const movies = await moviesCollection.find({ genre: { $regex: genre, $options: "i" } }).toArray();
-        res.send(movies);
-      } catch (error) {
-        console.error("Error filtering movies by genre:", error);
-        res.status(500).send({ message: "Error filtering movies", error: error.message });
-      }
-    });
-
-    // ==================== ADVANCED FILTERING ROUTES ====================
-
-    // Filter Movies by Multiple Genres (using $in operator)
-    app.post("/movies/filter/genres", async (req, res) => {
-      try {
-        const { genres } = req.body;
-
-        if (!genres || genres.length === 0) {
-          return res.status(400).send({ message: "Genres array is required" });
-        }
-
-        // Use MongoDB $in operator for multiple genres
-        const movies = await moviesCollection
-          .find({
-            genre: { $in: genres },
-          })
-          .toArray();
-
-        res.send(movies);
-      } catch (error) {
-        console.error("Error filtering by genres:", error);
-        res.status(500).send({ message: "Error filtering movies", error: error.message });
-      }
-    });
-
-    // Filter Movies by Rating Range (using $gte and $lte operators)
-    app.get("/movies/filter/rating", async (req, res) => {
-      try {
-        const minRating = parseFloat(req.query.min) || 0;
-        const maxRating = parseFloat(req.query.max) || 10;
-
-        // Use MongoDB $gte and $lte operators
-        const movies = await moviesCollection
-          .find({
-            rating: { $gte: minRating, $lte: maxRating },
-          })
-          .toArray();
-
-        res.send(movies);
-      } catch (error) {
-        console.error("Error filtering by rating:", error);
-        res.status(500).send({ message: "Error filtering movies", error: error.message });
-      }
-    });
-
-    // Combined Filter (Genres + Rating Range)
-    app.post("/movies/filter/advanced", async (req, res) => {
-      try {
-        const { genres, minRating, maxRating } = req.body;
-
-        const query = {};
-
-        // Add genre filter if provided (using $in)
-        if (genres && genres.length > 0) {
-          query.genre = { $in: genres };
-        }
-
-        // Add rating filter if provided (using $gte and $lte)
-        if (minRating !== undefined || maxRating !== undefined) {
-          query.rating = {};
-          if (minRating !== undefined) {
-            query.rating.$gte = parseFloat(minRating);
-          }
-          if (maxRating !== undefined) {
-            query.rating.$lte = parseFloat(maxRating);
-          }
-        }
-
-        const movies = await moviesCollection.find(query).toArray();
-        res.send(movies);
-      } catch (error) {
-        console.error("Error with advanced filtering:", error);
-        res.status(500).send({ message: "Error filtering movies", error: error.message });
       }
     });
 
