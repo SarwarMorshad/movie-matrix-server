@@ -23,9 +23,9 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect to MongoDB
-    await client.connect();
-    await client.db("admin").command({ ping: 1 });
-    console.log("✅ Successfully connected to MongoDB!");
+    // await client.connect();
+    // await client.db("admin").command({ ping: 1 });
+    console.log("Successfully connected to MongoDB!");
 
     // Database and Collections
     const database = client.db("movieMatrixDB");
@@ -557,13 +557,13 @@ async function run() {
           addedAt: new Date(),
         });
 
-        console.log("✅ Movie added to watchlist:", email, movieId);
+        console.log("Movie added to watchlist:", email, movieId);
         res.status(201).send({
           message: "Added to watchlist",
           result,
         });
       } catch (error) {
-        console.error("❌ Error adding to watchlist:", error);
+        console.error(" Error adding to watchlist:", error);
         res.status(500).send({
           message: "Error adding to watchlist",
           error: error.message,
@@ -588,13 +588,13 @@ async function run() {
           });
         }
 
-        console.log("✅ Movie removed from watchlist:", email, movieId);
+        console.log(" Movie removed from watchlist:", email, movieId);
         res.send({
           message: "Removed from watchlist",
           result,
         });
       } catch (error) {
-        console.error("❌ Error removing from watchlist:", error);
+        console.error("Error removing from watchlist:", error);
         res.status(500).send({
           message: "Error removing from watchlist",
           error: error.message,
@@ -616,10 +616,8 @@ async function run() {
         });
       }
     });
-
-    console.log("✅ All routes are ready!");
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
+    console.error(" MongoDB connection error:", error);
   }
 }
 
@@ -627,5 +625,5 @@ run().catch(console.dir);
 
 // Start Server
 app.listen(port, () => {
-  console.log(`🎬 Movie Matrix Server is running on port ${port}`);
+  console.log(`Movie Matrix Server is running on port ${port}`);
 });
