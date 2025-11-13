@@ -31,6 +31,7 @@ async function run() {
     const database = client.db("movieMatrixDB");
     const moviesCollection = database.collection("movies");
     const usersCollection = database.collection("users");
+    const watchlistCollection = database.collection("watchlist");
 
     // ==================== ROUTES ====================
 
@@ -229,7 +230,137 @@ async function run() {
       }
     });
 
-    // ==================== SEARCH & FILTER ROUTES (OPTIONAL) ====================
+    // ==================== WATCHLIST ROUTES ====================
+
+    // Get User's Watchlist
+    app.get("/watchlist/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+
+        // Get all movie IDs from user's watchlist
+        const watchlistItems = await watchlistCollection.find({ email }).toArray();
+
+        if (watchlistItems.length === 0) {
+          return res.send([]); // Return empty array if no watchlist items
+        }
+
+        // Convert movie IDs to ObjectId
+        const movieIds = watchlistItems
+          .map((item) => {
+            try {
+              return new ObjectId(item.movieId);
+            } catch (error) {
+              console.error("Invalid movieId:", item.movieId);
+              return null;
+            }
+          })
+          .filter((id) => id !== null);
+
+        // Get full movie details
+        const movies = await moviesCollection.find({ _id: { $in: movieIds } }).toArray();
+
+        res.send(movies);
+      } catch (error) {
+        console.error("Error fetching watchlist:", error);
+        res.status(500).send({
+          message: "Error fetching watchlist",
+          error: error.message,
+        });
+      }
+    });
+
+    // Add Movie to Watchlist
+    app.post("/watchlist", async (req, res) => {
+      try {
+        const { email, movieId } = req.body;
+
+        // Validate input
+        if (!email || !movieId) {
+          return res.status(400).send({
+            message: "Email and movieId are required",
+          });
+        }
+
+        // Check if already in watchlist
+        const existing = await watchlistCollection.findOne({
+          email,
+          movieId: movieId.toString(), // Store as string
+        });
+
+        if (existing) {
+          return res.status(409).send({
+            message: "Movie already in watchlist",
+          });
+        }
+
+        // Add to watchlist
+        const result = await watchlistCollection.insertOne({
+          email,
+          movieId: movieId.toString(), // Store as string
+          addedAt: new Date(),
+        });
+
+        console.log("✅ Movie added to watchlist:", email, movieId);
+        res.status(201).send({
+          message: "Added to watchlist",
+          result,
+        });
+      } catch (error) {
+        console.error("❌ Error adding to watchlist:", error);
+        res.status(500).send({
+          message: "Error adding to watchlist",
+          error: error.message,
+        });
+      }
+    });
+
+    // Remove Movie from Watchlist
+    app.delete("/watchlist/:email/:movieId", async (req, res) => {
+      try {
+        const { email, movieId } = req.params;
+
+        // Delete from watchlist
+        const result = await watchlistCollection.deleteOne({
+          email,
+          movieId: movieId.toString(), // Search as string
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({
+            message: "Movie not found in watchlist",
+          });
+        }
+
+        console.log("✅ Movie removed from watchlist:", email, movieId);
+        res.send({
+          message: "Removed from watchlist",
+          result,
+        });
+      } catch (error) {
+        console.error("❌ Error removing from watchlist:", error);
+        res.status(500).send({
+          message: "Error removing from watchlist",
+          error: error.message,
+        });
+      }
+    });
+
+    // Get Watchlist Count (for stats)
+    app.get("/stats/watchlist-count/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        const count = await watchlistCollection.countDocuments({ email });
+        res.send({ watchlistCount: count });
+      } catch (error) {
+        console.error("Error fetching watchlist count:", error);
+        res.status(500).send({
+          message: "Error fetching watchlist count",
+          error: error.message,
+        });
+      }
+    });
+
+    // ==================== SEARCH & FILTER ROUTES ====================
 
     // Search Movies by Title
     app.get("/movies/search/:query", async (req, res) => {
@@ -255,6 +386,82 @@ async function run() {
         res.send(movies);
       } catch (error) {
         console.error("Error filtering movies by genre:", error);
+        res.status(500).send({ message: "Error filtering movies", error: error.message });
+      }
+    });
+
+    // ==================== ADVANCED FILTERING ROUTES ====================
+
+    // Filter Movies by Multiple Genres (using $in operator)
+    app.post("/movies/filter/genres", async (req, res) => {
+      try {
+        const { genres } = req.body;
+
+        if (!genres || genres.length === 0) {
+          return res.status(400).send({ message: "Genres array is required" });
+        }
+
+        // Use MongoDB $in operator for multiple genres
+        const movies = await moviesCollection
+          .find({
+            genre: { $in: genres },
+          })
+          .toArray();
+
+        res.send(movies);
+      } catch (error) {
+        console.error("Error filtering by genres:", error);
+        res.status(500).send({ message: "Error filtering movies", error: error.message });
+      }
+    });
+
+    // Filter Movies by Rating Range (using $gte and $lte operators)
+    app.get("/movies/filter/rating", async (req, res) => {
+      try {
+        const minRating = parseFloat(req.query.min) || 0;
+        const maxRating = parseFloat(req.query.max) || 10;
+
+        // Use MongoDB $gte and $lte operators
+        const movies = await moviesCollection
+          .find({
+            rating: { $gte: minRating, $lte: maxRating },
+          })
+          .toArray();
+
+        res.send(movies);
+      } catch (error) {
+        console.error("Error filtering by rating:", error);
+        res.status(500).send({ message: "Error filtering movies", error: error.message });
+      }
+    });
+
+    // Combined Filter (Genres + Rating Range)
+    app.post("/movies/filter/advanced", async (req, res) => {
+      try {
+        const { genres, minRating, maxRating } = req.body;
+
+        const query = {};
+
+        // Add genre filter if provided (using $in)
+        if (genres && genres.length > 0) {
+          query.genre = { $in: genres };
+        }
+
+        // Add rating filter if provided (using $gte and $lte)
+        if (minRating !== undefined || maxRating !== undefined) {
+          query.rating = {};
+          if (minRating !== undefined) {
+            query.rating.$gte = parseFloat(minRating);
+          }
+          if (maxRating !== undefined) {
+            query.rating.$lte = parseFloat(maxRating);
+          }
+        }
+
+        const movies = await moviesCollection.find(query).toArray();
+        res.send(movies);
+      } catch (error) {
+        console.error("Error with advanced filtering:", error);
         res.status(500).send({ message: "Error filtering movies", error: error.message });
       }
     });
