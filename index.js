@@ -47,7 +47,13 @@ async function run() {
       try {
         await client.db("admin").command({ ping: 1 });
         const movieCount = await moviesCollection.estimatedDocumentCount();
-        res.send({ ok: true, movieCount, time: new Date().toISOString() });
+        res.send({
+          ok: true,
+          movieCount,
+          time: new Date().toISOString(),
+          // Set by Vercel on Git deploys; shows which commit is live
+          commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "local",
+        });
       } catch (error) {
         console.error("Keep-alive failed:", error);
         res.status(500).send({ ok: false, error: error.message });
