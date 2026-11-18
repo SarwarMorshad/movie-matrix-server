@@ -41,6 +41,19 @@ async function run() {
       res.send("🎬 Movie Matrix Server Is Running!");
     });
 
+    // Keep-alive: touches the database so the free Atlas cluster
+    // isn't paused for inactivity. Called daily by the Vercel cron in vercel.json.
+    app.get("/keep-alive", async (req, res) => {
+      try {
+        await client.db("admin").command({ ping: 1 });
+        const movieCount = await moviesCollection.estimatedDocumentCount();
+        res.send({ ok: true, movieCount, time: new Date().toISOString() });
+      } catch (error) {
+        console.error("Keep-alive failed:", error);
+        res.status(500).send({ ok: false, error: error.message });
+      }
+    });
+
     // ==================== MOVIE ROUTES ====================
 
     // Get All Movies
