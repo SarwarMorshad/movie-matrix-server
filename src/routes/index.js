@@ -41,8 +41,15 @@ router.put("/reviews/:id", verifyToken, review.updateReview); // owner or admin
 router.delete("/reviews/:id", verifyToken, review.deleteReview); // owner or admin
 
 // ---------- Watchlist ----------
-router.get("/watchlist/:email", verifyToken, sameUserParam, watchlist.getWatchlist);
+// "me" routes take the user from the token. They must come before the
+// :email routes so "me" isn't read as an email.
+router.get("/watchlist/me", verifyToken, watchlist.getWatchlist);
+router.delete("/watchlist/me/:movieId", verifyToken, watchlist.removeFromWatchlist);
+router.get("/stats/watchlist-count/me", verifyToken, watchlist.getWatchlistCount);
 router.post("/watchlist", verifyToken, watchlist.addToWatchlist);
+// Older email routes, kept until the new client is live. Users can only
+// pass their own email (admins any).
+router.get("/watchlist/:email", verifyToken, sameUserParam, watchlist.getWatchlist);
 router.delete("/watchlist/:email/:movieId", verifyToken, sameUserParam, watchlist.removeFromWatchlist);
 router.get("/stats/watchlist-count/:email", verifyToken, sameUserParam, watchlist.getWatchlistCount);
 

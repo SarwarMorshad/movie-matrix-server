@@ -3,9 +3,13 @@ const { handle, toObjectId } = require("../utils/http");
 
 const { watchlist, movies } = collections;
 
-// A user's watchlist, as full movie documents
+// The watchlist owner is either the logged-in user (/watchlist/me) or the
+// :email in the URL (older routes, already checked by sameUserParam).
+const ownerEmail = (req) => (req.params.email ? req.params.email.toLowerCase() : req.user.email);
+
+// A watchlist, as full movie documents
 const getWatchlist = handle("Error fetching watchlist", async (req, res) => {
-  const items = await watchlist.find({ email: req.params.email.toLowerCase() }).toArray();
+  const items = await watchlist.find({ email: ownerEmail(req) }).toArray();
   if (items.length === 0) return res.send([]);
 
   const ids = items.map((item) => toObjectId(item.movieId)).filter(Boolean);
@@ -25,14 +29,13 @@ const addToWatchlist = handle("Error adding to watchlist", async (req, res) => {
 });
 
 const removeFromWatchlist = handle("Error removing from watchlist", async (req, res) => {
-  const { email, movieId } = req.params;
-  const result = await watchlist.deleteOne({ email: email.toLowerCase(), movieId: movieId.toString() });
+  const result = await watchlist.deleteOne({ email: ownerEmail(req), movieId: req.params.movieId.toString() });
   if (result.deletedCount === 0) return res.status(404).send({ message: "Movie not found in watchlist" });
   res.send({ message: "Removed from watchlist", result });
 });
 
 const getWatchlistCount = handle("Error fetching watchlist count", async (req, res) => {
-  res.send({ watchlistCount: await watchlist.countDocuments({ email: req.params.email.toLowerCase() }) });
+  res.send({ watchlistCount: await watchlist.countDocuments({ email: ownerEmail(req) }) });
 });
 
 module.exports = { getWatchlist, addToWatchlist, removeFromWatchlist, getWatchlistCount };
