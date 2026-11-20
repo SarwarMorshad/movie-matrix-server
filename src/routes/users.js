@@ -1,19 +1,40 @@
 const express = require("express");
 const { collections } = require("../config/db");
 const { handle } = require("../utils/http");
+const { verifyToken } = require("../middleware/auth");
 
 const router = express.Router();
 const { users } = collections;
 
-// Save a user the first time they sign in
+// Save the logged-in user the first time they sign in. Identity comes from
+// the token; new users always start with the "user" role.
 router.post(
   "/users",
+  verifyToken,
   handle("Error saving user", async (req, res) => {
-    const user = req.body;
-    if (await users.findOne({ email: user.email })) {
+    const email = req.user.email;
+    if (await users.findOne({ email })) {
       return res.send({ message: "User already exists", insertedId: null });
     }
-    res.status(201).send(await users.insertOne(user));
+    const { name, photoURL } = req.body;
+    const result = await users.insertOne({
+      name: name || req.user.name || null,
+      email,
+      photoURL: photoURL || req.user.picture || null,
+      role: "user",
+      createdAt: new Date(),
+    });
+    res.status(201).send(result);
+  })
+);
+
+// The logged-in user's own record, including their role
+router.get(
+  "/users/me",
+  verifyToken,
+  handle("Error fetching user", async (req, res) => {
+    const user = await users.findOne({ email: req.user.email });
+    res.send({ ...(user || { email: req.user.email, name: req.user.name }), role: req.user.role });
   })
 );
 
