@@ -145,17 +145,46 @@
 Create a `.env` file with the following variables:
 
 ```env
-# MongoDB Configuration
+# MongoDB: either a full connection string...
+MONGODB_URI=mongodb+srv://user:password@cluster0.example.mongodb.net/?appName=Cluster0
+# ...or the older username/password pair (used when MONGODB_URI is not set)
 DB_USERNAME=your_mongodb_username
 DB_PASSWORD=your_mongodb_password
+DB_NAME=movieMatrixDB
+
+# Firebase Admin (verifies the ID tokens sent by the client). Use ONE of:
+# base64 of the service-account JSON (recommended on Vercel)
+FIREBASE_SERVICE_ACCOUNT=base64-encoded-service-account-json
+# or a path to the JSON file (handy locally)
+FIREBASE_SERVICE_ACCOUNT_PATH=../serviceAccountKey.json
 
 # Server Configuration
 PORT=3000
-
-# Add additional environment variables as needed
 ```
 
-⚠️ **Never commit your `.env` file to version control!**
+To make the base64 value for Vercel from the downloaded key file:
+
+```bash
+node -e "console.log(require('fs').readFileSync('serviceAccountKey.json').toString('base64'))"
+```
+
+⚠️ **Never commit your `.env` file or `serviceAccountKey.json` to version control!**
+
+### 🔒 Authentication
+
+Routes that change data, or read personal data, need a Firebase ID token:
+
+```
+Authorization: Bearer <firebase-id-token>
+```
+
+| Access | Routes |
+| --- | --- |
+| Public | `GET /movies`, `/movies/:id`, `/movies-top-rated`, `/movies-recent`, `/reviews/:movieId`, `/stats/*-count` |
+| Logged in | `POST /movies`, `POST /reviews`, `GET /my-movies`, `GET /my-reviews`, `POST /users`, `GET /users/me`, watchlist routes |
+| Owner or admin | `PUT/DELETE /movies/:id`, `PUT/DELETE /reviews/:id` |
+
+Identity always comes from the token: `addedBy`, `userEmail` and watchlist emails sent in the body are ignored. A user is an admin when their document in the `users` collection has `role: "admin"`.
 
 ---
 

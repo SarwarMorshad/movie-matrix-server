@@ -1,0 +1,40 @@
+const { client, collections } = require("../config/db");
+const { handle } = require("../utils/http");
+
+const { movies, users, reviews } = collections;
+
+const healthCheck = (req, res) => {
+  res.send("🎬 Movie Matrix Server Is Running!");
+};
+
+// Touches the database so the free Atlas cluster isn't paused for
+// inactivity. Called daily by the Vercel cron in vercel.json.
+const keepAlive = async (req, res) => {
+  try {
+    await client.db("admin").command({ ping: 1 });
+    res.send({
+      ok: true,
+      movieCount: await movies.estimatedDocumentCount(),
+      time: new Date().toISOString(),
+      // Set by Vercel on Git deploys; shows which commit is live
+      commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "local",
+    });
+  } catch (error) {
+    console.error("Keep-alive failed:", error);
+    res.status(500).send({ ok: false, error: error.message });
+  }
+};
+
+const getMoviesCount = handle("Error fetching movie count", async (req, res) => {
+  res.send({ totalMovies: await movies.countDocuments() });
+});
+
+const getUsersCount = handle("Error fetching user count", async (req, res) => {
+  res.send({ totalUsers: await users.countDocuments() });
+});
+
+const getReviewsCount = handle("Error fetching review count", async (req, res) => {
+  res.send({ totalReviews: await reviews.countDocuments({ moderated: true }) });
+});
+
+module.exports = { healthCheck, keepAlive, getMoviesCount, getUsersCount, getReviewsCount };
