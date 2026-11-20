@@ -1,6 +1,7 @@
 const express = require("express");
 const { collections } = require("../config/db");
 const { handle, toObjectId } = require("../utils/http");
+const { verifyToken, isOwnerOrAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 const { movies, reviews } = collections;
@@ -56,21 +57,23 @@ router.get(
   })
 );
 
-// Movies added by a user (My Collection)
+// Movies added by the logged-in user (My Collection)
 router.get(
   "/my-movies",
+  verifyToken,
   handle("Error fetching user movies", async (req, res) => {
-    const email = req.query.email;
-    if (!email) return res.status(400).send({ message: "Email is required" });
-    res.send(await movies.find({ addedBy: email }).toArray());
+    res.send(await movies.find({ addedBy: req.user.email }).toArray());
   })
 );
 
-// Add a movie
+// Add a movie. The owner is always the logged-in user.
 router.post(
   "/movies",
+  verifyToken,
   handle("Error adding movie", async (req, res) => {
-    const movie = req.body;
+    // Ignore fields the client must not set itself
+    const { _id, addedBy, reviewCount, ...fields } = req.body;
+    const movie = { ...fields, addedBy: req.user.email };
     if (!movie.title || !movie.genre || !movie.rating) {
       return res.status(400).send({ message: "Missing required fields" });
     }
@@ -78,12 +81,32 @@ router.post(
   })
 );
 
+// Only the user who added a movie, or an admin, may change or delete it
+async function loadOwnedMovie(req, res) {
+  const _id = toObjectId(req.params.id);
+  if (!_id) {
+    res.status(400).send({ message: "Invalid movie id" });
+    return null;
+  }
+  const movie = await movies.findOne({ _id }, { projection: { addedBy: 1 } });
+  if (!movie) {
+    res.status(404).send({ message: "Movie not found" });
+    return null;
+  }
+  if (!isOwnerOrAdmin(req.user, movie.addedBy)) {
+    res.status(403).send({ message: "You can only change movies you added" });
+    return null;
+  }
+  return _id;
+}
+
 // Update a movie
 router.put(
   "/movies/:id",
+  verifyToken,
   handle("Error updating movie", async (req, res) => {
-    const _id = toObjectId(req.params.id);
-    if (!_id) return res.status(400).send({ message: "Invalid movie id" });
+    const _id = await loadOwnedMovie(req, res);
+    if (!_id) return;
 
     const m = req.body;
     const result = await movies.updateOne(
@@ -112,12 +135,12 @@ router.put(
 // Delete a movie and its reviews
 router.delete(
   "/movies/:id",
+  verifyToken,
   handle("Error deleting movie", async (req, res) => {
-    const id = req.params.id;
-    const _id = toObjectId(id);
-    if (!_id) return res.status(400).send({ message: "Invalid movie id" });
+    const _id = await loadOwnedMovie(req, res);
+    if (!_id) return;
 
-    await reviews.deleteMany({ movieId: id });
+    await reviews.deleteMany({ movieId: req.params.id });
     const result = await movies.deleteOne({ _id });
     if (result.deletedCount === 0) return res.status(404).send({ message: "Movie not found" });
     res.send(result);
