@@ -12,7 +12,8 @@ async function verifyToken(req, res, next) {
 
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token) return res.status(401).send({ message: "Please log in to continue" });
+  // `code` lets the client tell "not logged in" apart from "token rejected"
+  if (!token) return res.status(401).send({ code: "TOKEN_MISSING", message: "Please log in to continue" });
 
   try {
     const decoded = await auth.verifyIdToken(token);
@@ -27,7 +28,9 @@ async function verifyToken(req, res, next) {
     };
     next();
   } catch (error) {
-    return res.status(401).send({ message: "Your session has expired, please log in again" });
+    return res
+      .status(401)
+      .send({ code: "TOKEN_INVALID", message: "Your session has expired, please log in again" });
   }
 }
 
