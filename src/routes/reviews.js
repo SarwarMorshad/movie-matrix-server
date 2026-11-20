@@ -2,6 +2,7 @@ const express = require("express");
 const { collections } = require("../config/db");
 const { handle, toObjectId } = require("../utils/http");
 const { refreshMovieRating } = require("../utils/ratings");
+const { verifyToken, isOwnerOrAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 const { reviews } = collections;
@@ -14,25 +15,29 @@ router.get(
   })
 );
 
-// A user's own reviews
+// The logged-in user's reviews
 router.get(
   "/my-reviews",
+  verifyToken,
   handle("Error fetching user reviews", async (req, res) => {
-    const email = req.query.email;
-    if (!email) return res.status(400).send({ message: "Email is required" });
-    res.send(await reviews.find({ userEmail: email }).sort({ createdAt: -1 }).toArray());
+    res.send(await reviews.find({ userEmail: req.user.email }).sort({ createdAt: -1 }).toArray());
   })
 );
 
-// Add a review
+// Add a review as the logged-in user
 router.post(
   "/reviews",
+  verifyToken,
   handle("Error adding review", async (req, res) => {
-    const { movieId, rating, comment, userEmail, userName, userPhoto } = req.body;
+    const { movieId, rating, comment, userName, userPhoto } = req.body;
+    const userEmail = req.user.email;
 
-    if (!movieId || !rating || !userEmail) {
-      return res.status(400).send({ message: "Movie ID, rating, and user email are required" });
+    if (!movieId || !rating) {
+      return res.status(400).send({ message: "Movie ID and rating are required" });
     }
+    const movieObjectId = toObjectId(movieId);
+    const movieExists = movieObjectId && (await collections.movies.countDocuments({ _id: movieObjectId }, { limit: 1 }));
+    if (!movieExists) return res.status(404).send({ message: "Movie not found" });
     if (rating < 1 || rating > 10) {
       return res.status(400).send({ message: "Rating must be between 1 and 10" });
     }
@@ -45,8 +50,8 @@ router.post(
       rating: parseFloat(rating),
       comment: comment || "",
       userEmail,
-      userName: userName || "Anonymous",
-      userPhoto: userPhoto || null,
+      userName: userName || req.user.name || "Anonymous",
+      userPhoto: userPhoto || req.user.picture || null,
       createdAt: new Date(),
       moderated: true, // auto-approved for now
     };
@@ -57,17 +62,18 @@ router.post(
   })
 );
 
-// Update a review (owner only)
+// Update a review (owner or admin)
 router.put(
   "/reviews/:id",
+  verifyToken,
   handle("Error updating review", async (req, res) => {
     const _id = toObjectId(req.params.id);
     if (!_id) return res.status(400).send({ message: "Invalid review id" });
 
-    const { rating, comment, userEmail } = req.body;
+    const { rating, comment } = req.body;
     const review = await reviews.findOne({ _id });
     if (!review) return res.status(404).send({ message: "Review not found" });
-    if (review.userEmail !== userEmail) {
+    if (!isOwnerOrAdmin(req.user, review.userEmail)) {
       return res.status(403).send({ message: "You can only update your own reviews" });
     }
     if (rating && (rating < 1 || rating > 10)) {
@@ -90,19 +96,17 @@ router.put(
   })
 );
 
-// Delete a review (owner only)
+// Delete a review (owner or admin)
 router.delete(
   "/reviews/:id",
+  verifyToken,
   handle("Error deleting review", async (req, res) => {
     const _id = toObjectId(req.params.id);
     if (!_id) return res.status(400).send({ message: "Invalid review id" });
 
-    const userEmail = req.query.email;
-    if (!userEmail) return res.status(400).send({ message: "User email is required" });
-
     const review = await reviews.findOne({ _id });
     if (!review) return res.status(404).send({ message: "Review not found" });
-    if (review.userEmail !== userEmail) {
+    if (!isOwnerOrAdmin(req.user, review.userEmail)) {
       return res.status(403).send({ message: "You can only delete your own reviews" });
     }
 
