@@ -37,4 +37,16 @@ const getReviewsCount = handle("Error fetching review count", async (req, res) =
   res.send({ totalReviews: await reviews.countDocuments({ moderated: true }) });
 });
 
-module.exports = { healthCheck, keepAlive, getMoviesCount, getUsersCount, getReviewsCount };
+// Number of movies per genre, most first: [{ genre: "Animation", count: 18 }, ...]
+const getGenreCounts = handle("Error fetching genre counts", async (req, res) => {
+  const rows = await movies
+    .aggregate([
+      { $match: { genre: { $type: "string", $ne: "" } } },
+      { $group: { _id: "$genre", count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } },
+    ])
+    .toArray();
+  res.send(rows.map((r) => ({ genre: r._id, count: r.count })));
+});
+
+module.exports = { healthCheck, keepAlive, getMoviesCount, getUsersCount, getReviewsCount, getGenreCounts };
