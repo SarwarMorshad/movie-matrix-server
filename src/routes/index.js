@@ -22,11 +22,12 @@ router.get("/keep-alive", stats.keepAlive);
 router.get("/stats/movies-count", stats.getMoviesCount);
 router.get("/stats/users-count", stats.getUsersCount);
 router.get("/stats/reviews-count", stats.getReviewsCount);
+router.get("/stats/genres", stats.getGenreCounts);
 
 // ---------- Movies ----------
 router.get("/movies", movie.getAllMovies);
-router.get("/movies-top-rated", movie.getTopRatedMovies);
-router.get("/movies-recent", movie.getRecentMovies);
+router.get("/movies-top-rated", movie.getTopRatedMovies); // ?limit=N, default 5
+router.get("/movies-recent", movie.getRecentMovies); // ?limit=N, default 6
 router.get("/movies/:id", movie.getMovieById);
 router.get("/my-movies", verifyToken, movie.getMyMovies);
 router.post("/movies", verifyToken, movie.createMovie);
