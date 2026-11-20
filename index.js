@@ -2,23 +2,13 @@ require("dotenv").config();
 const cors = require("cors");
 const express = require("express");
 const app = express();
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { ObjectId } = require("mongodb");
+const { client, collections } = require("./src/config/db");
 const port = process.env.PORT || 3000;
 
 // Middlewares
 app.use(cors());
 app.use(express.json());
-
-// MongoDB Connection URI
-const uri = `mongodb+srv://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@cluster0.cjj6frc.mongodb.net/?appName=Cluster0`;
-
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
 
 async function run() {
   try {
@@ -27,12 +17,13 @@ async function run() {
     // await client.db("admin").command({ ping: 1 });
     console.log("Successfully connected to MongoDB!");
 
-    // Database and Collections
-    const database = client.db("movieMatrixDB");
-    const moviesCollection = database.collection("movies");
-    const usersCollection = database.collection("users");
-    const watchlistCollection = database.collection("watchlist");
-    const reviewsCollection = database.collection("reviews");
+    // Collections
+    const {
+      movies: moviesCollection,
+      users: usersCollection,
+      watchlist: watchlistCollection,
+      reviews: reviewsCollection,
+    } = collections;
 
     // ==================== ROUTES ====================
 
