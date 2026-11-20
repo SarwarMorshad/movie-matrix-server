@@ -49,4 +49,24 @@ const getGenreCounts = handle("Error fetching genre counts", async (req, res) =>
   res.send(rows.map((r) => ({ genre: r._id, count: r.count })));
 });
 
-module.exports = { healthCheck, keepAlive, getMoviesCount, getUsersCount, getReviewsCount, getGenreCounts };
+// Number of movies per language, most first: [{ language: "English", count: 80 }, ...]
+const getLanguageCounts = handle("Error fetching language counts", async (req, res) => {
+  const rows = await movies
+    .aggregate([
+      { $match: { language: { $type: "string", $ne: "" } } },
+      { $group: { _id: "$language", count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } },
+    ])
+    .toArray();
+  res.send(rows.map((r) => ({ language: r._id, count: r.count })));
+});
+
+module.exports = {
+  healthCheck,
+  keepAlive,
+  getMoviesCount,
+  getUsersCount,
+  getReviewsCount,
+  getGenreCounts,
+  getLanguageCounts,
+};

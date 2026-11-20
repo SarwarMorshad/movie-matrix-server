@@ -23,6 +23,7 @@ router.get("/stats/movies-count", stats.getMoviesCount);
 router.get("/stats/users-count", stats.getUsersCount);
 router.get("/stats/reviews-count", stats.getReviewsCount);
 router.get("/stats/genres", stats.getGenreCounts);
+router.get("/stats/languages", stats.getLanguageCounts);
 
 // ---------- Movies ----------
 router.get("/movies", movie.getAllMovies);
