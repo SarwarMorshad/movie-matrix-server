@@ -42,6 +42,43 @@ const getRecentMovies = handle("Error fetching recent movies", async (req, res) 
   res.send(await movies.find().sort({ _id: -1 }).limit(readLimit(req, 6)).toArray());
 });
 
+// Filtered, sorted, paginated list for the All Movies page.
+//   ?search=  title contains (case-insensitive)   ?genre=  exact genre
+//   ?language=  exact language                   ?minRating=  number 0-10
+//   ?sort=  rating (default) | newest | title     ?page=  1+   ?limit=  1-50 (default 20)
+// Returns { movies, total, page, totalPages, limit }
+const SORTS = {
+  rating: { rating: -1, _id: -1 },
+  newest: { releaseYear: -1, _id: -1 },
+  added: { _id: -1 },
+  title: { title: 1 },
+};
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const browseMovies = handle("Error browsing movies", async (req, res) => {
+  const { search, genre, language, minRating, sort } = req.query;
+  const filter = {};
+  if (search?.trim()) filter.title = { $regex: escapeRegex(search.trim().slice(0, 100)), $options: "i" };
+  if (genre) filter.genre = String(genre);
+  if (language) filter.language = String(language);
+  const min = parseFloat(minRating);
+  if (Number.isFinite(min) && min > 0) filter.rating = { $gte: min };
+
+  const limit = readLimit(req, 20);
+  const total = await movies.countDocuments(filter);
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const page = Math.min(Math.max(parseInt(req.query.page, 10) || 1, 1), totalPages);
+
+  const results = await movies
+    .find(filter)
+    .sort(SORTS[sort] || SORTS.rating)
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .toArray();
+
+  res.send({ movies: results, total, page, totalPages, limit });
+});
+
 // Single movie, with its approved reviews and average rating
 const getMovieById = handle("Error fetching movie", async (req, res) => {
   const id = req.params.id;
@@ -124,6 +161,7 @@ module.exports = {
   getAllMovies,
   getTopRatedMovies,
   getRecentMovies,
+  browseMovies,
   getMovieById,
   getMyMovies,
   createMovie,
