@@ -192,6 +192,14 @@ Authorization: Bearer <firebase-id-token>
 
 Identity always comes from the token: `addedBy`, `userEmail` and watchlist emails sent in the body are ignored. A user is an admin when their document in the `users` collection has `role: "admin"`.
 
+**Verified emails:** email/password accounts must verify their email (Firebase sends the link at sign-up). Until they do, logged-in routes answer `403` with `code: "EMAIL_NOT_VERIFIED"`. The only exception is `POST /users`, which saves the profile right after sign-up. Google sign-ins are already verified, and accounts created before `VERIFICATION_REQUIRED_SINCE` in `src/config/auth.js` are grandfathered.
+
+| Error code | Status | Meaning |
+| --- | --- | --- |
+| `TOKEN_MISSING` | 401 | No `Authorization` header |
+| `TOKEN_INVALID` | 401 | Token expired or not from this Firebase project |
+| `EMAIL_NOT_VERIFIED` | 403 | Email/password account that hasn't clicked its verification link |
+
 ---
 
 ## 📡 API Documentation
