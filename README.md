@@ -158,9 +158,15 @@ FIREBASE_SERVICE_ACCOUNT=base64-encoded-service-account-json
 # or a path to the JSON file (handy locally)
 FIREBASE_SERVICE_ACCOUNT_PATH=../serviceAccountKey.json
 
+# TMDB (TV series data). Use ONE of:
+TMDB_ACCESS_TOKEN=your-tmdb-api-read-access-token   # preferred
+TMDB_API_KEY=your-tmdb-v3-api-key
+
 # Server Configuration
 PORT=3000
 ```
+
+**Getting a TMDB token:** create a free account at themoviedb.org, then go to **Settings → API**, request an API key (Developer) and copy the **API Read Access Token**. Without it the `/tv/*` routes return `503`.
 
 To make the base64 value for Vercel from the downloaded key file:
 
@@ -180,7 +186,7 @@ Authorization: Bearer <firebase-id-token>
 
 | Access | Routes |
 | --- | --- |
-| Public | `GET /movies`, `/movies/:id`, `/movies-top-rated`, `/movies-recent`, `/reviews/:movieId`, `/stats/*-count` |
+| Public | `GET /movies`, `/movies/:id`, `/movies-top-rated`, `/movies-recent`, `/movies-browse`, `/reviews/:movieId`, `/stats/*`, all `/tv/*` routes |
 | Logged in | `POST /movies`, `POST /reviews`, `GET /my-movies`, `GET /my-reviews`, `POST /users`, `GET /users/me`, watchlist routes |
 | Owner or admin | `PUT/DELETE /movies/:id`, `PUT/DELETE /reviews/:id` |
 
