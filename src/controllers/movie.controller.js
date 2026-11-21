@@ -79,7 +79,10 @@ const browseMovies = handle("Error browsing movies", async (req, res) => {
   res.send({ movies: results, total, page, totalPages, limit });
 });
 
-// Single movie, with its approved reviews and average rating
+// Single movie with its approved reviews.
+//   rating          the movie's own rating (as entered when it was added)
+//   communityRating average of member reviews, or null when there are none
+//   averageRating   kept for older clients: communityRating, else rating
 const getMovieById = handle("Error fetching movie", async (req, res) => {
   const id = req.params.id;
   const _id = toObjectId(id);
@@ -89,16 +92,15 @@ const getMovieById = handle("Error fetching movie", async (req, res) => {
   if (!movie) return res.status(404).send({ message: "Movie not found" });
 
   const movieReviews = await reviews.find({ movieId: id, moderated: true }).sort({ createdAt: -1 }).toArray();
-
-  let averageRating = movie.rating;
-  if (movieReviews.length > 0) {
-    averageRating = (movieReviews.reduce((sum, r) => sum + r.rating, 0) / movieReviews.length).toFixed(1);
-  }
+  const communityRating = movieReviews.length
+    ? parseFloat((movieReviews.reduce((sum, r) => sum + r.rating, 0) / movieReviews.length).toFixed(1))
+    : null;
 
   res.send({
     ...movie,
     reviews: movieReviews,
-    averageRating: parseFloat(averageRating),
+    communityRating,
+    averageRating: communityRating ?? movie.rating,
     reviewCount: movieReviews.length,
   });
 });
