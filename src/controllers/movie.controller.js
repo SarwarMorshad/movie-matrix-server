@@ -28,12 +28,18 @@ const getAllMovies = handle("Error fetching movies", async (req, res) => {
   res.send(await movies.find().toArray());
 });
 
+// ?limit=N (1-50) lets the client ask for more rows; defaults keep old behaviour
+const readLimit = (req, fallback) => {
+  const n = parseInt(req.query.limit, 10);
+  return Number.isInteger(n) && n > 0 ? Math.min(n, 50) : fallback;
+};
+
 const getTopRatedMovies = handle("Error fetching top rated movies", async (req, res) => {
-  res.send(await movies.find().sort({ rating: -1 }).limit(5).toArray());
+  res.send(await movies.find().sort({ rating: -1 }).limit(readLimit(req, 5)).toArray());
 });
 
 const getRecentMovies = handle("Error fetching recent movies", async (req, res) => {
-  res.send(await movies.find().sort({ _id: -1 }).limit(6).toArray());
+  res.send(await movies.find().sort({ _id: -1 }).limit(readLimit(req, 6)).toArray());
 });
 
 // Single movie, with its approved reviews and average rating
