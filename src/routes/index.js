@@ -6,7 +6,7 @@
 //          owner checks for movies/reviews happen inside the controllers
 
 const express = require("express");
-const { verifyToken, sameUserParam } = require("../middleware/auth");
+const { verifyToken, verifyTokenAllowUnverified, sameUserParam } = require("../middleware/auth");
 
 const stats = require("../controllers/stats.controller");
 const movie = require("../controllers/movie.controller");
@@ -66,7 +66,7 @@ router.get("/tv/:id", tv.getSeries);
 router.get("/tv/:id/season/:number", tv.getSeason);
 
 // ---------- Users ----------
-router.post("/users", verifyToken, user.saveUser);
+router.post("/users", verifyTokenAllowUnverified, user.saveUser); // allowed before the email is verified
 router.get("/users/me", verifyToken, user.getMe);
 
 module.exports = router;
