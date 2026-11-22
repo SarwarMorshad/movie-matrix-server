@@ -1,6 +1,7 @@
 const { collections } = require("../config/db");
 const { handle, toObjectId } = require("../utils/http");
 const { isOwnerOrAdmin } = require("../middleware/auth");
+const { cleanMovieInput } = require("../utils/movieInput");
 
 const { movies, reviews } = collections;
 
@@ -110,40 +111,21 @@ const getMyMovies = handle("Error fetching user movies", async (req, res) => {
   res.send(await movies.find({ addedBy: req.user.email }).toArray());
 });
 
-// The owner is always the logged-in user
+// The owner is always the logged-in user; only known, checked fields are stored
 const createMovie = handle("Error adding movie", async (req, res) => {
-  // Ignore fields the client must not set itself
-  const { _id, addedBy, reviewCount, ...fields } = req.body;
-  const movie = { ...fields, addedBy: req.user.email };
-  if (!movie.title || !movie.genre || !movie.rating) {
-    return res.status(400).send({ message: "Missing required fields" });
-  }
-  res.status(201).send(await movies.insertOne(movie));
+  const { movie, error } = cleanMovieInput(req.body);
+  if (error) return res.status(400).send({ message: error });
+  res.status(201).send(await movies.insertOne({ ...movie, addedBy: req.user.email, createdAt: new Date() }));
 });
 
 const updateMovie = handle("Error updating movie", async (req, res) => {
   const _id = await loadOwnedMovie(req, res);
   if (!_id) return;
 
-  const m = req.body;
-  const result = await movies.updateOne(
-    { _id },
-    {
-      $set: {
-        title: m.title,
-        genre: m.genre,
-        releaseYear: m.releaseYear,
-        director: m.director,
-        cast: m.cast,
-        rating: m.rating,
-        duration: m.duration,
-        plotSummary: m.plotSummary,
-        posterUrl: m.posterUrl,
-        language: m.language,
-        country: m.country,
-      },
-    }
-  );
+  const { movie, error } = cleanMovieInput(req.body);
+  if (error) return res.status(400).send({ message: error });
+
+  const result = await movies.updateOne({ _id }, { $set: { ...movie, updatedAt: new Date() } });
   if (result.matchedCount === 0) return res.status(404).send({ message: "Movie not found" });
   res.send(result);
 });
