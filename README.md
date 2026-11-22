@@ -218,8 +218,12 @@ Movies from TMDB are called **films** in the API, to keep them apart from the me
 
 ```http
 GET /films/lists/:list?page=   # trending | popular | top_rated | now_playing | upcoming
+GET /films/genres              # [{ id, name }]
+GET /films/discover?genre=&sort=popular|rating|newest&page=
 GET /films/:id                 # details: runtime, age rating, directors, cast, trailer key, similar films
 ```
+
+Films can be saved to My List like series: `POST /watchlist/films` with `{ "filmId": <TMDB id> }` and `DELETE /watchlist/me/films/:filmId` (logged in). `GET /watchlist/me/all` returns them with `type: "film"`.
 
 ### Movie Routes
 

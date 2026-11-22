@@ -51,6 +51,8 @@ router.post("/watchlist", verifyToken, watchlist.addToWatchlist); // { movieId }
 router.delete("/watchlist/me/:movieId", verifyToken, watchlist.removeFromWatchlist);
 router.post("/watchlist/series", verifyToken, watchlist.addSeriesToList); // { seriesId } (TMDB id)
 router.delete("/watchlist/me/series/:seriesId", verifyToken, watchlist.removeSeriesFromList);
+router.post("/watchlist/films", verifyToken, watchlist.addFilmToList); // { filmId } (TMDB id)
+router.delete("/watchlist/me/films/:filmId", verifyToken, watchlist.removeFilmFromList);
 router.get("/stats/watchlist-count/me", verifyToken, watchlist.getWatchlistCount);
 
 // ---------- TV series (from TMDB, cached in MongoDB) ----------
@@ -63,6 +65,8 @@ router.get("/tv/:id/season/:number", tv.getSeason);
 
 // ---------- Films (movies from TMDB, cached in MongoDB) ----------
 router.get("/films/lists/:list", film.getList); // trending | popular | top_rated | now_playing | upcoming; ?page
+router.get("/films/genres", film.getGenres);
+router.get("/films/discover", film.discover); // ?genre=<id>&sort=popular|rating|newest&page
 router.get("/films/:id", film.getFilm);
 
 // ---------- Users ----------

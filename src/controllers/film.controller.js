@@ -5,6 +5,7 @@ const { HOUR, handleTmdb, round1, yearOf, pageOf, positiveInt, pickTrailerKey, t
 // MongoDB), reshaped into the simple objects the client uses.
 
 const LISTS = ["trending", "popular", "top_rated", "now_playing", "upcoming"];
+const SORTS = { popular: "popularity.desc", rating: "vote_average.desc", newest: "primary_release_date.desc" };
 
 // One film in a list or row
 const toCard = (m) => ({
@@ -26,6 +27,26 @@ const getList = handleTmdb("Error fetching film list", async (req, res) => {
   if (!LISTS.includes(list)) return res.status(400).send({ message: `List must be one of: ${LISTS.join(", ")}` });
   const path = list === "trending" ? "/trending/movie/week" : `/movie/${list}`;
   res.send(toPage(await tmdbGet(path, { page: pageOf(req) }, 6 * HOUR), toCard));
+});
+
+// GET /films/genres -> [{ id, name }]
+const getGenres = handleTmdb("Error fetching film genres", async (req, res) => {
+  const data = await tmdbGet("/genre/movie/list", {}, 7 * 24 * HOUR);
+  res.send(data.genres || []);
+});
+
+// GET /films/discover?genre=<id>&sort=popular|rating|newest&page=
+const discover = handleTmdb("Error discovering films", async (req, res) => {
+  const params = { page: pageOf(req), sort_by: SORTS[req.query.sort] || SORTS.popular };
+  const genre = positiveInt(req.query.genre);
+  if (genre) params.with_genres = genre;
+  // Without a vote floor, "top rated" fills up with films that have one 10/10 vote
+  if (req.query.sort === "rating") params["vote_count.gte"] = 300;
+  if (req.query.sort === "newest") {
+    params["primary_release_date.lte"] = new Date().toISOString().slice(0, 10);
+    params["vote_count.gte"] = 20; // skip near-unknown titles
+  }
+  res.send(toPage(await tmdbGet("/discover/movie", params, 6 * HOUR), toCard));
 });
 
 // GET /films/:id -> full film details with cast, trailer and similar films
@@ -60,4 +81,8 @@ const getFilm = handleTmdb("Error fetching film", async (req, res) => {
   });
 });
 
-module.exports = { getList, getFilm };
+// Card details for one film (used when saving a film to My List).
+// Throws TmdbError (404 when the film doesn't exist).
+const fetchFilmCard = async (id) => toCard(await tmdbGet(`/movie/${id}`, {}, 24 * HOUR));
+
+module.exports = { getList, getGenres, discover, getFilm, fetchFilmCard };
