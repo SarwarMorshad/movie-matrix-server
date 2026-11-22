@@ -1,26 +1,10 @@
-const { tmdbGet, image, TmdbError } = require("../services/tmdb");
+const { tmdbGet, image } = require("../services/tmdb");
+const { HOUR, handleTmdb, round1, yearOf, pageOf, positiveInt, pickTrailerKey, toPage: toPageOf } = require("../utils/tmdbShape");
 
 // TV series from TMDB, reshaped into the simple objects the client uses.
 
-const HOUR = 3600;
 const LISTS = ["trending", "popular", "top_rated", "airing_today", "on_the_air"];
 const SORTS = { popular: "popularity.desc", rating: "vote_average.desc", newest: "first_air_date.desc" };
-
-// Wraps a handler: TMDB errors keep their status (404, 502, 503), others are 500
-const handleTmdb = (label, fn) => async (req, res) => {
-  try {
-    await fn(req, res);
-  } catch (error) {
-    if (error instanceof TmdbError) return res.status(error.status).send({ message: error.message });
-    console.error(`${label}:`, error);
-    res.status(500).send({ message: label, error: error.message });
-  }
-};
-
-const round1 = (n) => (typeof n === "number" ? Math.round(n * 10) / 10 : null);
-const yearOf = (date) => (date ? Number(date.slice(0, 4)) : null);
-const pageOf = (req) => Math.min(Math.max(parseInt(req.query.page, 10) || 1, 1), 500);
-const positiveInt = (value) => (/^\d{1,9}$/.test(String(value)) ? Number(value) : null);
 
 // One series in a list or grid
 const toCard = (t) => ({
@@ -36,13 +20,7 @@ const toCard = (t) => ({
   backdropUrl: image(t.backdrop_path, "w1280"),
 });
 
-// TMDB page -> { results, page, totalPages, total }. TMDB serves at most 500 pages.
-const toPage = (data) => ({
-  results: (data.results || []).filter((t) => t.poster_path).map(toCard),
-  page: data.page,
-  totalPages: Math.min(data.total_pages || 1, 500),
-  total: data.total_results || 0,
-});
+const toPage = (data) => toPageOf(data, toCard);
 
 // GET /tv/lists/:list?page=  (trending | popular | top_rated | airing_today | on_the_air)
 const getList = handleTmdb("Error fetching TV list", async (req, res) => {
@@ -83,11 +61,6 @@ const getSeries = handleTmdb("Error fetching series", async (req, res) => {
 
   const t = await tmdbGet(`/tv/${id}`, { append_to_response: "credits,videos,recommendations,content_ratings" }, 24 * HOUR);
 
-  const videos = t.videos?.results || [];
-  const trailer =
-    videos.find((v) => v.site === "YouTube" && v.type === "Trailer" && v.official) ||
-    videos.find((v) => v.site === "YouTube" && v.type === "Trailer") ||
-    videos.find((v) => v.site === "YouTube" && v.type === "Teaser");
   const usRating = t.content_ratings?.results?.find((r) => r.iso_3166_1 === "US")?.rating || null;
 
   res.send({
@@ -104,7 +77,7 @@ const getSeries = handleTmdb("Error fetching series", async (req, res) => {
     networks: (t.networks || []).map((n) => n.name),
     createdBy: (t.created_by || []).map((c) => c.name),
     voteCount: t.vote_count,
-    trailerKey: trailer?.key || null, // YouTube video id
+    trailerKey: pickTrailerKey(t.videos?.results), // YouTube video id
     seasons: (t.seasons || [])
       .filter((s) => s.season_number > 0 && s.episode_count > 0) // skip "Specials"
       .map((s) => ({
