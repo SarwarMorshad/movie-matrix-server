@@ -13,6 +13,7 @@ const review = require("../controllers/review.controller");
 const watchlist = require("../controllers/watchlist.controller");
 const user = require("../controllers/user.controller");
 const tv = require("../controllers/tv.controller");
+const film = require("../controllers/film.controller");
 
 const router = express.Router();
 
@@ -59,6 +60,10 @@ router.get("/tv/discover", tv.discover); // ?genre=<id>&sort=popular|rating|newe
 router.get("/tv/search", tv.search); // ?q=&page
 router.get("/tv/:id", tv.getSeries);
 router.get("/tv/:id/season/:number", tv.getSeason);
+
+// ---------- Films (movies from TMDB, cached in MongoDB) ----------
+router.get("/films/lists/:list", film.getList); // trending | popular | top_rated | now_playing | upcoming; ?page
+router.get("/films/:id", film.getFilm);
 
 // ---------- Users ----------
 router.post("/users", verifyTokenAllowUnverified, user.saveUser); // allowed before the email is verified
