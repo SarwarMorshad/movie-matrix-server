@@ -70,17 +70,7 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// Use after verifyToken on routes with an :email param. Users may only act on
-// their own data; admins may act on anyone's.
-function sameUserParam(req, res, next) {
-  const email = String(req.params.email || "").toLowerCase();
-  if (email !== req.user.email && req.user.role !== "admin") {
-    return res.status(403).send({ message: "You can only access your own data" });
-  }
-  next();
-}
-
 const isOwnerOrAdmin = (user, ownerEmail) =>
   user.role === "admin" || (!!ownerEmail && String(ownerEmail).toLowerCase() === user.email);
 
-module.exports = { verifyToken, verifyTokenAllowUnverified, requireAdmin, sameUserParam, isOwnerOrAdmin };
+module.exports = { verifyToken, verifyTokenAllowUnverified, requireAdmin, isOwnerOrAdmin };

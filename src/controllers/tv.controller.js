@@ -149,4 +149,8 @@ const getSeason = handleTmdb("Error fetching season", async (req, res) => {
   });
 });
 
-module.exports = { getList, getGenres, discover, search, getSeries, getSeason };
+// Card details for one series (used when saving a series to My List).
+// Throws TmdbError (404 when the series doesn't exist).
+const fetchSeriesCard = async (id) => toCard(await tmdbGet(`/tv/${id}`, {}, 24 * HOUR));
+
+module.exports = { getList, getGenres, discover, search, getSeries, getSeason, fetchSeriesCard };

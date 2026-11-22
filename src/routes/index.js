@@ -2,11 +2,10 @@
 //
 // Access:  public       – anyone
 //          verifyToken  – logged-in user (Firebase ID token)
-//          sameUserParam – :email must be the caller's own (or caller is admin)
 //          owner checks for movies/reviews happen inside the controllers
 
 const express = require("express");
-const { verifyToken, verifyTokenAllowUnverified, sameUserParam } = require("../middleware/auth");
+const { verifyToken, verifyTokenAllowUnverified } = require("../middleware/auth");
 
 const stats = require("../controllers/stats.controller");
 const movie = require("../controllers/movie.controller");
@@ -44,18 +43,14 @@ router.post("/reviews", verifyToken, review.createReview);
 router.put("/reviews/:id", verifyToken, review.updateReview); // owner or admin
 router.delete("/reviews/:id", verifyToken, review.deleteReview); // owner or admin
 
-// ---------- Watchlist ----------
-// "me" routes take the user from the token. They must come before the
-// :email routes so "me" isn't read as an email.
-router.get("/watchlist/me", verifyToken, watchlist.getWatchlist);
+// ---------- Watchlist / My List (always the logged-in user's own list) ----------
+router.get("/watchlist/me", verifyToken, watchlist.getWatchlist); // saved movies only
+router.get("/watchlist/me/all", verifyToken, watchlist.getMyList); // movies + series, newest first
+router.post("/watchlist", verifyToken, watchlist.addToWatchlist); // { movieId }
 router.delete("/watchlist/me/:movieId", verifyToken, watchlist.removeFromWatchlist);
+router.post("/watchlist/series", verifyToken, watchlist.addSeriesToList); // { seriesId } (TMDB id)
+router.delete("/watchlist/me/series/:seriesId", verifyToken, watchlist.removeSeriesFromList);
 router.get("/stats/watchlist-count/me", verifyToken, watchlist.getWatchlistCount);
-router.post("/watchlist", verifyToken, watchlist.addToWatchlist);
-// Older email routes, kept until the new client is live. Users can only
-// pass their own email (admins any).
-router.get("/watchlist/:email", verifyToken, sameUserParam, watchlist.getWatchlist);
-router.delete("/watchlist/:email/:movieId", verifyToken, sameUserParam, watchlist.removeFromWatchlist);
-router.get("/stats/watchlist-count/:email", verifyToken, sameUserParam, watchlist.getWatchlistCount);
 
 // ---------- TV series (from TMDB, cached in MongoDB) ----------
 router.get("/tv/lists/:list", tv.getList); // trending | popular | top_rated | airing_today | on_the_air; ?page
