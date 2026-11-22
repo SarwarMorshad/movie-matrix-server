@@ -63,5 +63,6 @@ router.get("/tv/:id/season/:number", tv.getSeason);
 // ---------- Users ----------
 router.post("/users", verifyTokenAllowUnverified, user.saveUser); // allowed before the email is verified
 router.get("/users/me", verifyToken, user.getMe);
+router.patch("/users/me", verifyToken, user.updateMe); // { name?, photoURL? }
 
 module.exports = router;
