@@ -187,7 +187,7 @@ Authorization: Bearer <firebase-id-token>
 | Access | Routes |
 | --- | --- |
 | Public | `GET /movies`, `/movies/:id`, `/movies-top-rated`, `/movies-recent`, `/movies-browse`, `/reviews/:movieId`, `/stats/*`, all `/tv/*` routes |
-| Logged in | `POST /movies`, `POST /reviews`, `GET /my-movies`, `GET /my-reviews`, `POST /users`, `GET /users/me`, watchlist routes |
+| Logged in | `POST /movies`, `POST /reviews`, `GET /my-movies`, `GET /my-reviews`, `POST /users`, `GET /users/me`, `PATCH /users/me`, watchlist routes |
 | Owner or admin | `PUT/DELETE /movies/:id`, `PUT/DELETE /reviews/:id` |
 
 Identity always comes from the token: `addedBy`, `userEmail` and watchlist emails sent in the body are ignored. A user is an admin when their document in the `users` collection has `role: "admin"`.
@@ -213,6 +213,8 @@ http://localhost:3000
 ---
 
 ### Movie Routes
+
+When adding or editing a movie, the server only keeps these fields and checks them: `title`, `genre` (one of the 15 genres in `src/utils/movieInput.js`), `releaseYear` (1888 to five years from now), `director`, `cast`, `rating` (0–10), `duration` (1–900 minutes), `plotSummary` (10+ characters), `posterUrl` (`http(s)` link), `language`, `country`. Anything else is ignored; bad values get a `400` with a message.
 
 #### Get All Movies
 
@@ -481,7 +483,16 @@ POST /users
 }
 ```
 
-**Note:** Prevents duplicate user creation
+**Note:** Prevents duplicate user creation. The name may be at most 60 characters; the photo URL is optional but must be an `http(s)` link. New users start with `role: "user"` and `plan: "free"`.
+
+#### Get / Update My Profile
+
+```http
+GET /users/me
+PATCH /users/me
+```
+
+`GET` returns the signed-in user's record with `role` and `plan`. `PATCH` takes `{ "name"?: string, "photoURL"?: string }` (send only what changes; an empty `photoURL` removes the photo) and returns the updated record.
 
 ---
 
