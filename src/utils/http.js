@@ -18,4 +18,7 @@ function toObjectId(id) {
   return ObjectId.isValid(id) && String(new ObjectId(id)) === String(id) ? new ObjectId(id) : null;
 }
 
-module.exports = { handle, toObjectId };
+// Escapes user text so it can be used inside a RegExp / Mongo $regex literally.
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+module.exports = { handle, toObjectId, escapeRegex };
