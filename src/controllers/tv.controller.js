@@ -1,5 +1,5 @@
 const { tmdbGet, image } = require("../services/tmdb");
-const { HOUR, handleTmdb, round1, yearOf, pageOf, positiveInt, pickTrailerKey, toPage: toPageOf } = require("../utils/tmdbShape");
+const { HOUR, handleTmdb, round1, yearOf, pageOf, positiveInt, pickTrailerKey, pickLogoPath, toPage: toPageOf } = require("../utils/tmdbShape");
 
 // TV series from TMDB, reshaped into the simple objects the client uses.
 
@@ -59,7 +59,7 @@ const getSeries = handleTmdb("Error fetching series", async (req, res) => {
   const id = positiveInt(req.params.id);
   if (!id) return res.status(400).send({ message: "Invalid series id" });
 
-  const t = await tmdbGet(`/tv/${id}`, { append_to_response: "credits,videos,recommendations,content_ratings" }, 24 * HOUR);
+  const t = await tmdbGet(`/tv/${id}`, { append_to_response: "credits,videos,recommendations,content_ratings,images", include_image_language: "en,null" }, 24 * HOUR);
 
   const usRating = t.content_ratings?.results?.find((r) => r.iso_3166_1 === "US")?.rating || null;
 
@@ -78,6 +78,7 @@ const getSeries = handleTmdb("Error fetching series", async (req, res) => {
     createdBy: (t.created_by || []).map((c) => c.name),
     voteCount: t.vote_count,
     trailerKey: pickTrailerKey(t.videos?.results), // YouTube video id
+    logoUrl: image(pickLogoPath(t.images?.logos), "w500"), // title artwork, or null
     seasons: (t.seasons || [])
       .filter((s) => s.season_number > 0 && s.episode_count > 0) // skip "Specials"
       .map((s) => ({

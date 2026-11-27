@@ -1,5 +1,5 @@
 const { tmdbGet, image } = require("../services/tmdb");
-const { HOUR, handleTmdb, round1, yearOf, pageOf, positiveInt, pickTrailerKey, toPage } = require("../utils/tmdbShape");
+const { HOUR, handleTmdb, round1, yearOf, pageOf, positiveInt, pickTrailerKey, pickLogoPath, toPage } = require("../utils/tmdbShape");
 
 // Movies from TMDB ("films", to keep them apart from the members' movies in
 // MongoDB), reshaped into the simple objects the client uses.
@@ -54,7 +54,7 @@ const getFilm = handleTmdb("Error fetching film", async (req, res) => {
   const id = positiveInt(req.params.id);
   if (!id) return res.status(400).send({ message: "Invalid film id" });
 
-  const m = await tmdbGet(`/movie/${id}`, { append_to_response: "credits,videos,recommendations,release_dates" }, 24 * HOUR);
+  const m = await tmdbGet(`/movie/${id}`, { append_to_response: "credits,videos,recommendations,release_dates,images", include_image_language: "en,null" }, 24 * HOUR);
 
   // US age rating, e.g. "PG-13"
   const usRelease = m.release_dates?.results?.find((r) => r.iso_3166_1 === "US");
@@ -72,6 +72,7 @@ const getFilm = handleTmdb("Error fetching film", async (req, res) => {
     countries: (m.production_countries || []).map((c) => c.name),
     voteCount: m.vote_count,
     trailerKey: pickTrailerKey(m.videos?.results), // YouTube video id
+    logoUrl: image(pickLogoPath(m.images?.logos), "w500"), // title artwork, or null
     cast: (m.credits?.cast || []).slice(0, 12).map((c) => ({
       name: c.name,
       character: c.character,
