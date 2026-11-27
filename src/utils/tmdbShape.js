@@ -28,6 +28,12 @@ const pickTrailerKey = (videos = []) =>
     videos.find((v) => v.site === "YouTube" && v.type === "Teaser")
   )?.key || null;
 
+// Best title logo (transparent artwork of the title) from a TMDB images list:
+// English first, then one without text language. Needs append_to_response=images
+// with include_image_language=en,null.
+const pickLogoPath = (logos = []) =>
+  (logos.find((l) => l.iso_639_1 === "en") || logos.find((l) => !l.iso_639_1))?.file_path || null;
+
 // TMDB page -> { results, page, totalPages, total }, keeping only items with a poster.
 // TMDB serves at most 500 pages.
 const toPage = (data, toCard) => ({
@@ -37,4 +43,4 @@ const toPage = (data, toCard) => ({
   total: data.total_results || 0,
 });
 
-module.exports = { HOUR, handleTmdb, round1, yearOf, pageOf, positiveInt, pickTrailerKey, toPage };
+module.exports = { HOUR, handleTmdb, round1, yearOf, pageOf, positiveInt, pickTrailerKey, pickLogoPath, toPage };
