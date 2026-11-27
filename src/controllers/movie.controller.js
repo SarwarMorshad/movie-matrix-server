@@ -1,5 +1,5 @@
 const { collections } = require("../config/db");
-const { handle, toObjectId } = require("../utils/http");
+const { handle, toObjectId, escapeRegex } = require("../utils/http");
 const { isOwnerOrAdmin } = require("../middleware/auth");
 const { cleanMovieInput } = require("../utils/movieInput");
 
@@ -54,7 +54,6 @@ const SORTS = {
   added: { _id: -1 },
   title: { title: 1 },
 };
-const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const browseMovies = handle("Error browsing movies", async (req, res) => {
   const { search, genre, language, minRating, sort } = req.query;

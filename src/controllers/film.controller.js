@@ -85,4 +85,4 @@ const getFilm = handleTmdb("Error fetching film", async (req, res) => {
 // Throws TmdbError (404 when the film doesn't exist).
 const fetchFilmCard = async (id) => toCard(await tmdbGet(`/movie/${id}`, {}, 24 * HOUR));
 
-module.exports = { getList, getGenres, discover, getFilm, fetchFilmCard };
+module.exports = { getList, getGenres, discover, getFilm, fetchFilmCard, toCard };

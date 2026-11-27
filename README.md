@@ -225,6 +225,16 @@ GET /films/:id                 # details: runtime, age rating, directors, cast, 
 
 Films can be saved to My List like series: `POST /watchlist/films` with `{ "filmId": <TMDB id> }` and `DELETE /watchlist/me/films/:filmId` (logged in). `GET /watchlist/me/all` returns them with `type: "film"`.
 
+### Search
+
+One endpoint searches the whole catalogue (public):
+
+```http
+GET /search?q=&type=all|film|series&page=
+```
+
+Returns `{ query, results, members, page, totalPages, total }`. `results` are TMDB film and series cards (each with `type: "film"` or `"series"`; people and titles without a poster are left out). `members` holds up to 12 of the members' own movies whose title matches, on page 1 only.
+
 ### Movie Routes
 
 When adding or editing a movie, the server only keeps these fields and checks them: `title`, `genre` (one of the 15 genres in `src/utils/movieInput.js`), `releaseYear` (1888 to five years from now), `director`, `cast`, `rating` (0–10), `duration` (1–900 minutes), `plotSummary` (10+ characters), `posterUrl` (`http(s)` link), `language`, `country`. Anything else is ignored; bad values get a `400` with a message.
