@@ -14,6 +14,7 @@ const watchlist = require("../controllers/watchlist.controller");
 const user = require("../controllers/user.controller");
 const tv = require("../controllers/tv.controller");
 const film = require("../controllers/film.controller");
+const search = require("../controllers/search.controller");
 
 const router = express.Router();
 
@@ -68,6 +69,9 @@ router.get("/films/lists/:list", film.getList); // trending | popular | top_rate
 router.get("/films/genres", film.getGenres);
 router.get("/films/discover", film.discover); // ?genre=<id>&sort=popular|rating|newest&page
 router.get("/films/:id", film.getFilm);
+
+// ---------- Search (films + series from TMDB, and members' movies) ----------
+router.get("/search", search.search); // ?q=&type=all|film|series&page
 
 // ---------- Users ----------
 router.post("/users", verifyTokenAllowUnverified, user.saveUser); // allowed before the email is verified
